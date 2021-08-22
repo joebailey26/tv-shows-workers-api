@@ -1,0 +1,8 @@
+name = "tv-shows-api"
+type = "webpack"
+route = ''
+zone_id = '8ef065a9318fac4a900a53c7338208f8'
+account_id = '8259f9bfa45a74a587d6a90822de442d'
+usage_model = ''
+compatibility_flags = []
+workers_dev = true
