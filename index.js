@@ -29,7 +29,8 @@ router.add('GET', '/get-shows', async (request, response) => {
   response.setHeader('Content-Type', 'application/json')
   response.setHeader('Access-Control-Allow-Origin', '*')
   response.setHeader('Access-Control-Allow-Headers', 'authorization')
-  if (Object.fromEntries(request.headers).authorization === 'GTO') {
+  // eslint-disable-next-line no-undef
+  if (Object.fromEntries(request.headers).authorization === AUTH_SECRET) {
     try {
       const shows = await faunaClient.query(q.Paginate(q.Match(q.Ref('indexes/tv-shows'))))
       console.log(shows)
@@ -54,7 +55,8 @@ router.add('POST', '/add-show/:id', async (request, response) => {
   response.setHeader('Content-Type', 'application/json')
   response.setHeader('Access-Control-Allow-Origin', '*')
   response.setHeader('Access-Control-Allow-Headers', 'authorization')
-  if (Object.fromEntries(request.headers).authorization === 'GTO') {
+  // eslint-disable-next-line no-undef
+  if (Object.fromEntries(request.headers).authorization === AUTH_SECRET) {
     try {
       const data = {
         data: {
@@ -76,7 +78,8 @@ router.add('POST', '/remove-show/:id', async (request, response) => {
   response.setHeader('Content-Type', 'application/json')
   response.setHeader('Access-Control-Allow-Origin', '*')
   response.setHeader('Access-Control-Allow-Headers', 'authorization')
-  if (Object.fromEntries(request.headers).authorization === 'GTO') {
+  // eslint-disable-next-line no-undef
+  if (Object.fromEntries(request.headers).authorization === AUTH_SECRET) {
     try {
       await faunaClient.query(q.Delete(q.Ref(`classes/tv-shows/${request.params.id}`)))
       response.send(200, 'Removed successfully')
