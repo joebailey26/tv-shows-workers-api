@@ -6,3 +6,4 @@ account_id = '8259f9bfa45a74a587d6a90822de442d'
 usage_model = ''
 compatibility_flags = []
 workers_dev = true
+webpack_config = "webpack.config.js"
