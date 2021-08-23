@@ -7,3 +7,6 @@ usage_model = ''
 compatibility_flags = []
 workers_dev = true
 webpack_config = "webpack.config.js"
+kv_namespaces = [
+  { binding = "KV_TV_SHOWS", id = "b62c83dd4c614b5bbe512f6cb2ed8ba5", preview_id = "b62c83dd4c614b5bbe512f6cb2ed8ba5" }
+]
