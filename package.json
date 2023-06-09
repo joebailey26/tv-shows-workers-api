@@ -1,15 +1,18 @@
 {
   "name": "tv-shows-api",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
   "scripts": {
-    "lint": "eslint --ext .js ./ --fix"
+    "lint": "eslint --ext .js ./ --fix",
+    "start": "wrangler dev",
+    "deploy": "wrangler publish",
+    "wrangler": "^3.0.0"
   },
   "dependencies": {
     "@nuxtjs/eslint-config": "^6.0.1",
     "eslint": "^7.32.0",
     "eslint-plugin-nuxt": "^2.0.0",
-    "faunadb": "^4.2.0",
-    "worktop": "^0.7.1"
+    "faunadb": "^4.8.0",
+    "worktop": "^0.7.3"
   }
 }
