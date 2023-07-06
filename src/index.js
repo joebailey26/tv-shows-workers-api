@@ -160,10 +160,10 @@ router.add('POST', '/remove-show/:id', async (request, response) => {
 listen(router.run)
 
 addEventListener('scheduled', (event) => {
-  event.waitUntil(handleScheduled(event))
+  event.waitUntil(handleScheduled())
 })
 
-function handleScheduled (request) {
+function handleScheduled () {
   return getShows().then(async (response) => {
     const IDs = await response
     for (const ID of IDs) {

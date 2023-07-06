@@ -1,0 +1,26 @@
+{
+  "root": true,
+  "env": {
+    "node": true,
+    "es2020": true
+  },
+  "extends": [
+    "@nuxtjs/eslint-config",
+    "plugin:nuxt/recommended"
+  ],
+  // add your custom rules here
+  "rules": {
+    "quotes": [
+      "error",
+      "single"
+    ],
+    "arrow-parens": [
+      "error",
+      "always"
+    ],
+    "semi": [
+      "error",
+      "never"
+    ]
+  }
+}

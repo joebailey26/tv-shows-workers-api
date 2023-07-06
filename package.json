@@ -3,15 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "lint": "eslint --ext .js ./ --fix",
+    "lint:scripts": "eslint --ext .js --ignore-path .gitignore .",
+    "fix:scripts": "eslint --ext .js --ignore-path .gitignore . --fix",
     "start": "wrangler dev",
     "deploy": "wrangler publish",
     "wrangler": "^3.0.0"
   },
   "dependencies": {
     "@nuxtjs/eslint-config": "^6.0.1",
-    "eslint": "^7.32.0",
-    "eslint-plugin-nuxt": "^2.0.0",
+    "eslint": "^7.29.0",
+    "eslint-plugin-nuxt": "^4.0.0",
     "faunadb": "^4.8.0",
     "worktop": "^0.7.3"
   }
