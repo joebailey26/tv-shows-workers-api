@@ -6,14 +6,15 @@
     "lint:scripts": "eslint --ext .js --ignore-path .gitignore .",
     "fix:scripts": "eslint --ext .js --ignore-path .gitignore . --fix",
     "start": "wrangler dev",
-    "deploy": "wrangler publish",
-    "wrangler": "^3.0.0"
+    "deploy": "wrangler publish"
   },
   "dependencies": {
+    "worktop": "^0.7.3"
+  },
+  "devDependencies": {
     "@nuxtjs/eslint-config": "^6.0.1",
     "eslint": "^7.29.0",
     "eslint-plugin-nuxt": "^4.0.0",
-    "faunadb": "^4.8.0",
-    "worktop": "^0.7.3"
+    "wrangler": "^3.11.0"
   }
 }

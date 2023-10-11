@@ -1,35 +1,17 @@
 import { Router, listen } from 'worktop'
-import faunadb from 'faunadb'
-import { customFetch, getFaunaError } from './utils.js'
+import { customFetch } from './utils.js'
 import { ics } from './calendar'
 
 const router = new Router()
-
-const q = faunadb.query
-const faunaClient = new faunadb.Client({
-  // eslint-disable-next-line no-undef
-  secret: FAUNA_SECRET,
-  fetch: customFetch
-})
 
 const cal = ics()
 let err
 
 async function getShows () {
-  try {
-    const shows = await faunaClient.query(q.Paginate(q.Match(q.Ref('indexes/tv-shows'))))
-    const showRefs = shows.data
-    // create new query
-    const getAllShowsDataQuery = showRefs.map((ref) => {
-      return q.Get(ref)
-    })
-    // then query the refs
-    const result = await faunaClient.query(getAllShowsDataQuery)
-    return result
-  } catch (error) {
-    const faunaError = getFaunaError(error)
-    return faunaError.status + '\n' + faunaError
-  }
+  const { results } = await DB.prepare(
+    "SELECT * FROM tv_shows"
+  ).all();
+  return Response.json(results);
 }
 
 function getShowsEpisodate (id) {
@@ -120,18 +102,11 @@ router.add('POST', '/add-show/:id', async (request, response) => {
   response.setHeader('Access-Control-Allow-Headers', 'authorization')
   // eslint-disable-next-line no-undef
   if (Object.fromEntries(request.headers).authorization === AUTH_SECRET) {
-    try {
-      const data = {
-        data: {
-          id: request.params.id
-        }
-      }
-      await faunaClient.query(q.Create(q.Ref('classes/tv-shows'), data))
-      response.send(200, 'Added successfully')
-    } catch (error) {
-      const faunaError = getFaunaError(error)
-      response.send(faunaError.status, faunaError)
-    }
+    await db.prepare('INSERT INTO tv_shows (id) VALUES (?)')
+      .bind(request.params.id)
+      .run()
+
+    response.send(200, 'Added successfully')
   } else {
     // response.send(401, 'Not Authorized')
     response.send(200, 'Added successfully')
@@ -144,13 +119,11 @@ router.add('POST', '/remove-show/:id', async (request, response) => {
   response.setHeader('Access-Control-Allow-Headers', 'authorization')
   // eslint-disable-next-line no-undef
   if (Object.fromEntries(request.headers).authorization === AUTH_SECRET) {
-    try {
-      await faunaClient.query(q.Delete(q.Ref(`classes/tv-shows/${request.params.id}`)))
+    await db.prepare('DELETE FROM tv_shows WHERE id = ?')
+      .bind(request.params.id)
+      .run()
+
       response.send(200, 'Removed successfully')
-    } catch (error) {
-      const faunaError = getFaunaError(error)
-      response.send(faunaError.status, faunaError)
-    }
   } else {
     // response.send(401, 'Not Authorized')
     response.send(200, 'Removed successfully')

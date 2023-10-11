@@ -12,9 +12,9 @@ The API serves 3 purposes:
 
 3. As a live ICAL/ICS URL for any calendar application so that I can sync the TV Shows with my personal calendar.
 
-The API stores the Episodate ID of each TV Show in FaunaDB.
+The API stores the Episodate ID of each TV Show in Cloudflare D1.
 
-To avoid Rate Limiting issues with the [Episodate API](https://www.episodate.com/api), and to ensure that information is as up to date as possible, a CRON is run every 8 hours which runs through all IDs in FaunaDB, fetches the data from Episodate, and stores it in Workers KV. This data is then readily available to return to the front-end application, or to the live ICAL/ICS URL.
+To avoid Rate Limiting issues with the [Episodate API](https://www.episodate.com/api), and to ensure that information is as up to date as possible, a CRON is run every 8 hours which runs through all IDs in Cloudflare D1, fetches the data from Episodate, and stores it in Workers KV. This data is then readily available to return to the front-end application, or to the live ICAL/ICS URL.
 
 ## Routes
 
@@ -22,8 +22,8 @@ GET ```/``` **Returns Welcome!**
 
 GET ```/calendar``` **Returns ICAL/ICS Calendar file**
 
-GET ```/get-shows``` **Returns list of IDs of TV Shows that are stored in FaunaDB**
+GET ```/get-shows``` **Returns list of IDs of TV Shows that are stored in Cloudflare D1**
 
-POST ```/add-show/:id``` **Adds show to FaunaDB**
+POST ```/add-show/:id``` **Adds show to Cloudflare D1**
 
-POST ```/remove-show/:id``` **Removes show from FaunaDB**
+POST ```/remove-show/:id``` **Removes show from Cloudflare D1**
