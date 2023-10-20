@@ -1,17 +1,35 @@
-import { Router, listen } from 'worktop'
-import { customFetch } from './utils.js'
+import { Router } from '@tsndr/cloudflare-worker-router'
 import { ics } from './calendar'
 
-const router = new Router()
+export default {
+  fetch (request, env, ctx) {
+    return handleRequest(request, env, ctx)
+  },
+
+  async scheduled (event, env, ctx) {
+    ctx.waitUntil(await handleScheduled())
+  }
+}
+
+function handleScheduled () {
+  return getShows().then(async (response) => {
+    const IDs = await response
+    for (const ID of IDs) {
+      await getShowsEpisodate(ID.data.id)
+    }
+  }).catch((error) => {
+    return new Response(error + err, { status: 500 })
+  })
+}
 
 const cal = ics()
 let err
 
 async function getShows () {
   const { results } = await DB.prepare(
-    "SELECT * FROM tv_shows"
-  ).all();
-  return Response.json(results);
+    'SELECT * FROM tv_shows'
+  ).all()
+  return Response.json(results)
 }
 
 function getShowsEpisodate (id) {
@@ -41,13 +59,6 @@ function createShow (show) {
     }
   }
 }
-
-router.add('GET', '/', (request, response) => {
-  response.setHeader('Content-Type', 'application/json')
-  response.setHeader('Access-Control-Allow-Origin', '*')
-  response.setHeader('Access-Control-Allow-Headers', 'authorization')
-  response.send(200, 'Welcome!')
-})
 
 router.add('OPTIONS', '*', (request, response) => {
   response.setHeader('Content-Type', 'application/json')
@@ -102,7 +113,7 @@ router.add('POST', '/add-show/:id', async (request, response) => {
   response.setHeader('Access-Control-Allow-Headers', 'authorization')
   // eslint-disable-next-line no-undef
   if (Object.fromEntries(request.headers).authorization === AUTH_SECRET) {
-    await db.prepare('INSERT INTO tv_shows (id) VALUES (?)')
+    await DB.prepare('INSERT INTO tv_shows (id) VALUES (?)')
       .bind(request.params.id)
       .run()
 
@@ -119,30 +130,13 @@ router.add('POST', '/remove-show/:id', async (request, response) => {
   response.setHeader('Access-Control-Allow-Headers', 'authorization')
   // eslint-disable-next-line no-undef
   if (Object.fromEntries(request.headers).authorization === AUTH_SECRET) {
-    await db.prepare('DELETE FROM tv_shows WHERE id = ?')
+    await DB.prepare('DELETE FROM tv_shows WHERE id = ?')
       .bind(request.params.id)
       .run()
 
-      response.send(200, 'Removed successfully')
+    response.send(200, 'Removed successfully')
   } else {
     // response.send(401, 'Not Authorized')
     response.send(200, 'Removed successfully')
   }
 })
-
-listen(router.run)
-
-addEventListener('scheduled', (event) => {
-  event.waitUntil(handleScheduled())
-})
-
-function handleScheduled () {
-  return getShows().then(async (response) => {
-    const IDs = await response
-    for (const ID of IDs) {
-      await getShowsEpisodate(ID.data.id)
-    }
-  }).catch((error) => {
-    return new Response(error + err, { status: 500 })
-  })
-}

@@ -12,4 +12,4 @@ kv_namespaces = [
 [[d1_databases]]
   binding = "DB"
   database_name = "tv_shows"
-  database_id = "<unique-ID-for-your-database>"
+  database_id = "b7ecb718-2a90-4cab-a329-8ffaf1478085"
