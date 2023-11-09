@@ -138,8 +138,9 @@ router.get('/calendar', async ({ env, req }) => {
 })
 
 router.get('/shows', async ({ env, req }) => {
-  const result = await getShows(env)
-  result.sort((a, b) => {
+  const shows = await getShows(env)
+
+  shows.sort((a, b) => {
     const nameA = a.name.toUpperCase() // to ensure case-insensitive comparison
     const nameB = b.name.toUpperCase() // to ensure case-insensitive comparison
 
@@ -153,7 +154,8 @@ router.get('/shows', async ({ env, req }) => {
     // names must be equal
     return 0
   })
-  return Response.json(result)
+
+  return Response.json(shows)
 })
 
 router.post('/show/:id', async ({ env, req }) => {
