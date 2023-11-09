@@ -19,11 +19,9 @@ router.use(({ env, req }) => {
     return
   }
 
-  // Intercept if token doesn't match
+  // Intercept if token doesn't match and return an unauthorized response
   if (req.headers.get('authorization') !== env.AUTH_SECRET) {
-    // Temporarily return a 200 response so that the public example works
-    // return new Response('Unauthorized', { status: 401 })
-    // return new Response(null, { status: 200 })
+    return new Response('Unauthorized', { status: 401 })
   }
 })
 
