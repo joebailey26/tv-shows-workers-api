@@ -4,7 +4,7 @@ import { ics } from './ics'
 // Initialize router
 const router = new Router()
 
-// Enabling build in CORS support
+// Enabling built in CORS support
 router.cors()
 
 // Enable debug mode
