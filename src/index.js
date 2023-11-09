@@ -99,11 +99,11 @@ function getShowsEpisodate (id, env) {
 }
 
 // Return an ICS file containing events for all episodes of all shows stored in D1. Use KV for caching.
-router.get('/calendar', ({ env, req }) => {
+router.get('/calendar', async ({ env, req }) => {
   // Initialise a new calendar
   const cal = ics()
 
-  const shows = getShows(env)
+  const shows = await getShows(env)
   // Loop through all shows and all episodes for show and create a calendar event for that episode
   shows.forEach((show) => {
     show.episodes.forEach((episode) => {
