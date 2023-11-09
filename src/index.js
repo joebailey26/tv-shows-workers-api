@@ -159,8 +159,15 @@ router.get('/shows', async ({ env, req }) => {
 })
 
 router.post('/show/:id', async ({ env, req }) => {
-  // ToDo
-  //  Check if the id already exists and return an error if so
+  // Check if the id already exists and return an error if so
+  const exists = await env.DB.prepare('SELECT id FROM tv_shows WHERE id = ?')
+    .bind(req.params.id)
+    .get()
+
+  if (exists) {
+    return new Response('Show already exists', { status: 409 })
+  }
+
   await env.DB.prepare('INSERT INTO tv_shows (id) VALUES (?)')
     .bind(req.params.id)
     .run()
@@ -169,8 +176,15 @@ router.post('/show/:id', async ({ env, req }) => {
 })
 
 router.delete('/show/:id', async ({ env, req }) => {
-  // ToDo
-  //  Check if the show exists. If it doesn't throw an error
+  // Check if the show exists. If it doesn't throw an error
+  const exists = await env.DB.prepare('SELECT id FROM tv_shows WHERE id = ?')
+    .bind(req.params.id)
+    .get()
+
+  if (!exists) {
+    return new Response('Show does not exist', { status: 404 })
+  }
+
   await env.DB.prepare('DELETE FROM tv_shows WHERE id = ?')
     .bind(req.params.id)
     .run()
