@@ -162,7 +162,7 @@ router.post('/show/:id', async ({ env, req }) => {
   // Check if the id already exists and return an error if so
   const exists = await env.DB.prepare('SELECT id FROM tv_shows WHERE id = ?')
     .bind(req.params.id)
-    .get()
+    .first()
 
   if (exists) {
     return new Response('Show already exists', { status: 409 })
@@ -179,7 +179,7 @@ router.delete('/show/:id', async ({ env, req }) => {
   // Check if the show exists. If it doesn't throw an error
   const exists = await env.DB.prepare('SELECT id FROM tv_shows WHERE id = ?')
     .bind(req.params.id)
-    .get()
+    .first()
 
   if (!exists) {
     return new Response('Show does not exist', { status: 404 })
