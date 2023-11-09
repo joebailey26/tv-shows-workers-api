@@ -1,19 +1,20 @@
 {
   "name": "tv-shows-api",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "lint:scripts": "eslint --ext .js --ignore-path .gitignore .",
     "fix:scripts": "eslint --ext .js --ignore-path .gitignore . --fix",
-    "start": "wrangler dev",
-    "deploy": "wrangler publish",
-    "wrangler": "^3.0.0"
+    "start": "wrangler d1 execute tv_shows --local --file=./schema.sql && wrangler dev",
+    "deploy": "wrangler publish"
   },
-  "dependencies": {
+  "devDependencies": {
     "@nuxtjs/eslint-config": "^6.0.1",
     "eslint": "^7.29.0",
     "eslint-plugin-nuxt": "^4.0.0",
-    "faunadb": "^4.8.0",
-    "worktop": "^0.7.3"
+    "wrangler": "3.4.0"
+  },
+  "dependencies": {
+    "@tsndr/cloudflare-worker-router": "^3.1.0"
   }
 }

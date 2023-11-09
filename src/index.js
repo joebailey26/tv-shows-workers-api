@@ -1,175 +1,193 @@
-import { Router, listen } from 'worktop'
-import faunadb from 'faunadb'
-import { customFetch, getFaunaError } from './utils.js'
-import { ics } from './calendar'
+import { Router } from '@tsndr/cloudflare-worker-router'
+import { ics } from './ics'
 
+// Initialize router
 const router = new Router()
 
-const q = faunadb.query
-const faunaClient = new faunadb.Client({
-  // eslint-disable-next-line no-undef
-  secret: FAUNA_SECRET,
-  fetch: customFetch
+// Enabling built in CORS support
+router.cors()
+
+// Enable debug mode
+router.debug(true)
+
+// Register global middleware
+router.use(({ env, req }) => {
+  // Check if the request path is for the calendar route
+  const url = new URL(req.url)
+  if (url.pathname === '/calendar') {
+    // Bypass middleware logic for /calendar route
+    return
+  }
+
+  // Intercept if token doesn't match and return an unauthorized response
+  if (req.headers.get('authorization') !== env.AUTH_SECRET) {
+    return new Response('Unauthorized', { status: 401 })
+  }
 })
 
-const cal = ics()
-let err
+export default {
+  // The fetch event is a native Cloudflare Workers function.
+  // We return the router here which handles the request.
+  fetch (request, env, ctx) {
+    return router.handle(request, env, ctx)
+  },
 
-async function getShows () {
-  try {
-    const shows = await faunaClient.query(q.Paginate(q.Match(q.Ref('indexes/tv-shows'))))
-    const showRefs = shows.data
-    // create new query
-    const getAllShowsDataQuery = showRefs.map((ref) => {
-      return q.Get(ref)
-    })
-    // then query the refs
-    const result = await faunaClient.query(getAllShowsDataQuery)
-    return result
-  } catch (error) {
-    const faunaError = getFaunaError(error)
-    return faunaError.status + '\n' + faunaError
+  // The scheduled event is a native Cloudflare Workers function.
+  // We run this event on a CRON to populate KV with data from the Episodate API so that we don't hit rate limits
+  async scheduled (event, env, ctx) {
+    ctx.waitUntil(await handleScheduled(event, env, ctx))
   }
 }
 
-function getShowsEpisodate (id) {
-  return fetch(`https://www.episodate.com/api/show-details?q=${id}`, {
-    method: 'POST'
-  }).then(async (response) => {
-    const r = await response.json()
-    if (r.tvShow) {
-      // eslint-disable-next-line no-undef
-      await KV_TV_SHOWS.put(id.toString(), JSON.stringify(r.tvShow))
+async function getShowsFromD1 (env) {
+  // Fetch all shows stored in D1.
+  const { results } = await env.DB.prepare(
+    'SELECT * FROM tv_shows'
+  ).all()
+
+  return results
+}
+
+async function handleScheduled (event, env, ctx) {
+  const shows = await getShowsFromD1(env)
+
+  // Map each show to a promise that fetches the latest data from the Episodate API
+  const updatePromises = shows.map((show) => getShowsEpisodate(show.id, env).catch((error) => {
+    // Handle errors here for each individual show
+    // eslint-disable-next-line no-console
+    console.error(`Failed to update show with id ${show.id}:`, error)
+  }))
+
+  // Use Promise.allSettled to wait for all promises to settle i.e. succeed or fail
+  await Promise.allSettled(updatePromises)
+}
+
+async function getShows (env) {
+  const shows = await getShowsFromD1(env)
+
+  const episodesToReturn = []
+
+  // Loop through all shows and fetch the data we need from KV or Episodate
+  for (const show of shows) {
+    // Check if we have the show stored in the KV cache
+    const cachedShow = await env.KV_TV_SHOWS.get(show.id)
+
+    if (cachedShow !== undefined && cachedShow !== null) {
+      episodesToReturn.push(await JSON.parse(cachedShow))
+    } else {
+      episodesToReturn.push(await getShowsEpisodate(show.id, env))
     }
+  }
+
+  return episodesToReturn
+}
+
+// Get the details of a show from Episodate
+function getShowsEpisodate (id, env) {
+  return fetch(`https://www.episodate.com/api/show-details?q=${id}`).then(async (response) => {
+    const r = await response.json()
+    // If we don't get data back, then throw an error
+    if (!r.tvShow) {
+      throw new Error(`We didn't receive data from the Episodate API for show ${id}`)
+    }
+    // Cache the response in KV with a key of the show id
+    await env.KV_TV_SHOWS.put(id.toString(), JSON.stringify(r.tvShow))
+
+    // Return the data
     return r.tvShow
-  }).catch((error) => {
-    err = error
   })
 }
 
-function createShow (show) {
-  let i
-  for (i = 0; i < (show.episodes).length; i++) {
-    const episode = show.episodes[i]
-    if (episode.air_date) {
-      let date = new Date(episode.air_date)
-      date.setDate(date.getDate() + 1)
-      date = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-      cal.addEvent(show.name + ' | ' + episode.name, '', '', date, date)
-    }
-  }
-}
+// Return an ICS file containing events for all episodes of all shows stored in D1. Use KV for caching.
+router.get('/calendar', async ({ env, req }) => {
+  // Initialise a new calendar
+  const cal = ics()
 
-router.add('GET', '/', (request, response) => {
-  response.setHeader('Content-Type', 'application/json')
-  response.setHeader('Access-Control-Allow-Origin', '*')
-  response.setHeader('Access-Control-Allow-Headers', 'authorization')
-  response.send(200, 'Welcome!')
-})
+  const shows = await getShows(env)
+  // Loop through all shows and all episodes for show and create a calendar event for that episode
+  shows.forEach((show) => {
+    show.episodes.forEach((episode) => {
+      // Only process the episode if it has an air_date
+      if (episode.air_date) {
+        // Build the date for the episode
+        const date = new Date(episode.air_date)
+        date.setDate(date.getDate() + 1)
+        // Add the event to the calendar
+        cal.addEvent(
+          `${show.name} | ${episode.name}`,
+          '',
+          '',
+          date,
+          date
+        )
+      }
+    })
+  })
 
-router.add('OPTIONS', '*', (request, response) => {
-  response.setHeader('Content-Type', 'application/json')
-  response.setHeader('Access-Control-Allow-Origin', '*')
-  response.setHeader('Access-Control-Allow-Headers', 'authorization')
-  response.send(200, '')
-})
-
-router.add('GET', '/calendar', (request, response) => {
-  response.setHeader('Content-Type', 'application/json')
-  response.setHeader('Access-Control-Allow-Origin', '*')
-  response.setHeader('Access-Control-Allow-Headers', 'authorization')
-
-  return getShows().then(async (res) => {
-    const IDs = res
-    for (const ID of IDs) {
-      // eslint-disable-next-line no-undef
-      await KV_TV_SHOWS.get(ID.data.id).then(async (res) => {
-        if (res !== undefined && res !== null) {
-          await createShow(JSON.parse(res))
-        } else {
-          await createShow(await getShowsEpisodate(ID.data.id))
-        }
-      }).catch((error) => {
-        response.send(500, error + err)
+  return new Response(
+    // Return the built calendar
+    cal.build(),
+    // Send the correct content type header so the browser knows what to do with it.
+    // This also lets Google Calendar sync from this endpoint
+    {
+      headers: new Headers({
+        'Content-Type': 'text/calendar'
       })
     }
-    response.setHeader('Content-Type', 'text/calendar')
-    response.send(200, cal.build())
-  }).catch((error) => {
-    response.send(500, error + err)
+  )
+})
+
+router.get('/shows', async ({ env, req }) => {
+  const shows = await getShows(env)
+
+  shows.sort((a, b) => {
+    const nameA = a.name.toUpperCase() // to ensure case-insensitive comparison
+    const nameB = b.name.toUpperCase() // to ensure case-insensitive comparison
+
+    if (nameA < nameB) {
+      return -1
+    }
+    if (nameA > nameB) {
+      return 1
+    }
+
+    // names must be equal
+    return 0
   })
+
+  return Response.json(shows)
 })
 
-router.add('GET', '/get-shows', async (request, response) => {
-  response.setHeader('Content-Type', 'application/json')
-  response.setHeader('Access-Control-Allow-Origin', '*')
-  response.setHeader('Access-Control-Allow-Headers', 'authorization')
-  // eslint-disable-next-line no-undef
-  if (Object.fromEntries(request.headers).authorization === AUTH_SECRET) {
-    const result = await getShows()
-    response.send(200, result)
-  } else {
-    // response.send(401, 'Not Authorized')
-    response.send(200, [])
+router.post('/show/:id', async ({ env, req }) => {
+  // Check if the id already exists and return an error if so
+  const exists = await env.DB.prepare('SELECT id FROM tv_shows WHERE id = ?')
+    .bind(req.params.id)
+    .first()
+
+  if (exists) {
+    return new Response('Show already exists', { status: 409 })
   }
+
+  await env.DB.prepare('INSERT INTO tv_shows (id) VALUES (?)')
+    .bind(req.params.id)
+    .run()
+
+  return new Response('Added successfully', { status: 201 })
 })
 
-router.add('POST', '/add-show/:id', async (request, response) => {
-  response.setHeader('Content-Type', 'application/json')
-  response.setHeader('Access-Control-Allow-Origin', '*')
-  response.setHeader('Access-Control-Allow-Headers', 'authorization')
-  // eslint-disable-next-line no-undef
-  if (Object.fromEntries(request.headers).authorization === AUTH_SECRET) {
-    try {
-      const data = {
-        data: {
-          id: request.params.id
-        }
-      }
-      await faunaClient.query(q.Create(q.Ref('classes/tv-shows'), data))
-      response.send(200, 'Added successfully')
-    } catch (error) {
-      const faunaError = getFaunaError(error)
-      response.send(faunaError.status, faunaError)
-    }
-  } else {
-    // response.send(401, 'Not Authorized')
-    response.send(200, 'Added successfully')
+router.delete('/show/:id', async ({ env, req }) => {
+  // Check if the show exists. If it doesn't throw an error
+  const exists = await env.DB.prepare('SELECT id FROM tv_shows WHERE id = ?')
+    .bind(req.params.id)
+    .first()
+
+  if (!exists) {
+    return new Response('Show does not exist', { status: 404 })
   }
+
+  await env.DB.prepare('DELETE FROM tv_shows WHERE id = ?')
+    .bind(req.params.id)
+    .run()
+
+  return new Response('Removed successfully')
 })
-
-router.add('POST', '/remove-show/:id', async (request, response) => {
-  response.setHeader('Content-Type', 'application/json')
-  response.setHeader('Access-Control-Allow-Origin', '*')
-  response.setHeader('Access-Control-Allow-Headers', 'authorization')
-  // eslint-disable-next-line no-undef
-  if (Object.fromEntries(request.headers).authorization === AUTH_SECRET) {
-    try {
-      await faunaClient.query(q.Delete(q.Ref(`classes/tv-shows/${request.params.id}`)))
-      response.send(200, 'Removed successfully')
-    } catch (error) {
-      const faunaError = getFaunaError(error)
-      response.send(faunaError.status, faunaError)
-    }
-  } else {
-    // response.send(401, 'Not Authorized')
-    response.send(200, 'Removed successfully')
-  }
-})
-
-listen(router.run)
-
-addEventListener('scheduled', (event) => {
-  event.waitUntil(handleScheduled())
-})
-
-function handleScheduled () {
-  return getShows().then(async (response) => {
-    const IDs = await response
-    for (const ID of IDs) {
-      await getShowsEpisodate(ID.data.id)
-    }
-  }).catch((error) => {
-    return new Response(error + err, { status: 500 })
-  })
-}
