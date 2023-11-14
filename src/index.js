@@ -39,36 +39,54 @@ export default {
   }
 }
 
-async function getShowsFromD1 (env) {
-  // Fetch all shows stored in D1.
-  const { results } = await env.DB.prepare(
-    'SELECT * FROM tv_shows'
-  ).all()
-
-  return results
-}
-
 async function handleScheduled (event, env, ctx) {
-  const shows = await getShowsFromD1(env)
+  const limit = 10
+  let offset = 0
+  let hasMore = true
 
-  // Map each show to a promise that fetches the latest data from the Episodate API
-  const updatePromises = shows.map((show) => getShowsEpisodate(show.id, env).catch((error) => {
-    // Handle errors here for each individual show
-    // eslint-disable-next-line no-console
-    console.error(`Failed to update show with id ${show.id}:`, error)
-  }))
+  while (hasMore) {
+    const { results } = await env.DB.prepare(
+      `
+        SELECT * FROM tv_shows
+        LIMIT ${limit}
+        OFFSET ${offset}
+      `
+    ).all()
 
-  // Use Promise.allSettled to wait for all promises to settle i.e. succeed or fail
-  await Promise.allSettled(updatePromises)
+    // If no shows are returned, we've reached the end
+    if (results.length === 0) {
+      hasMore = false
+      break
+    }
+
+    // Map each show to a promise that fetches the latest data from the Episodate API
+    const updatePromises = results.map((show) => getShowsEpisodate(show.id, env).catch((error) => {
+      // Handle errors here for each individual show
+      // eslint-disable-next-line no-console
+      console.error(`Failed to update show with id ${show.id}:`, error)
+    }))
+
+    // Use Promise.allSettled to wait for all promises to settle i.e. succeed or fail
+    await Promise.allSettled(updatePromises)
+
+    // Move to the next page
+    offset += limit
+  }
 }
 
 async function getShows (env) {
-  const shows = await getShowsFromD1(env)
+  const { results } = await env.DB.prepare(
+    'SELECT * FROM tv_shows'
+    // ToDo
+    //  Where user = current user
+    //  Limit
+    //  Offset
+  ).all()
 
   const episodesToReturn = []
 
   // Loop through all shows and fetch the data we need from KV or Episodate
-  for (const show of shows) {
+  for (const show of results) {
     // Check if we have the show stored in the KV cache
     const cachedShow = await env.KV_TV_SHOWS.get(show.id)
 
