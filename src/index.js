@@ -48,6 +48,7 @@ async function handleScheduled (event, env, ctx) {
     const { results } = await env.DB.prepare(
       `
         SELECT * FROM tv_shows
+        GROUP BY id
         LIMIT ${limit}
         OFFSET ${offset}
       `
