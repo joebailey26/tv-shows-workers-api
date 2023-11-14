@@ -5,7 +5,7 @@
   "scripts": {
     "lint:scripts": "eslint --ext .js --ignore-path .gitignore .",
     "fix:scripts": "eslint --ext .js --ignore-path .gitignore . --fix",
-    "start": "wrangler d1 execute tv_shows --local --file=./schema.sql && wrangler dev",
+    "start": "wrangler d1 execute tv_shows --local --file=./schema.sql && wrangler dev --test-scheduled",
     "deploy": "wrangler publish"
   },
   "devDependencies": {
