@@ -110,8 +110,11 @@ router.get('/calendar', async ({ env, req }) => {
       // Only process the episode if it has an air_date
       if (episode.air_date) {
         // Build the date for the episode
-        const date = new Date(episode.air_date)
+        let date = new Date(episode.air_date)
+        // Set the date to plus one to allow pirates to upload it
         date.setDate(date.getDate() + 1)
+        // Strip the time from the date as we don't need it
+        date = new Date(date.getFullYear(), date.getMonth(), date.getDate())
         // Add the event to the calendar
         cal.addEvent(
           `${show.name} | ${episode.name}`,
