@@ -61,13 +61,20 @@ async function handleScheduled (event, env, ctx) {
     }
 
     // Map each show to a promise that fetches the latest data from the Episodate API
-    const updatePromises = results.map((show) => getShowsEpisodate(show.id, env).catch((error) => {
-      // Handle errors here for each individual show
-      // eslint-disable-next-line no-console
-      console.error(`Failed to update show with id ${show.id}:`, error)
-    }))
+    const updatePromises = results.map((show) => getShowsEpisodate(show.id, env)
+      .then((response) => {
+        // ToDo
+        // When sending an email we would do it to the user of the show, but currently it has to be my static email
+        // If the latest episode date has been added compared to KV, send an email
+        // If the show status (active, cancelled, etc) has changed compared to KV, send an email
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error(`Failed to update show with id ${show.id}:`, error)
+      })
+    )
 
-    // Use Promise.allSettled to wait for all promises to settle i.e. succeed or fail
+    // Use Promise.allSettled to wait for all promises succeed or fail
     await Promise.allSettled(updatePromises)
 
     // Move to the next page
